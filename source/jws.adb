@@ -43,7 +43,7 @@ package body JWS is
    ---------------------------
 
    function Compact_Serialization
-     (Self : JSON_Web_Signature) return League.Strings.Universal_String
+     (Self : JSON_Web_Signature'Class) return League.Strings.Universal_String
    is
       use type League.Strings.Universal_String;
 
@@ -111,6 +111,10 @@ package body JWS is
             return League.Stream_Element_Vectors.To_Stream_Element_Vector
               (Result);
          end;
+
+      elsif Alg = +"RS256" then
+
+         return RS256_Soft_Link (Data, Secret);
 
       elsif Alg = +"none" then
          return League.Stream_Element_Vectors.Empty_Stream_Element_Vector;
@@ -208,21 +212,36 @@ package body JWS is
    -------------
 
    function Payload
-     (Self : JSON_Web_Signature) return Ada.Streams.Stream_Element_Array is
+     (Self : JSON_Web_Signature'Class)
+        return Ada.Streams.Stream_Element_Array is
    begin
       return Self.Payload.To_Stream_Element_Array;
    end Payload;
 
-   -------------
-   -- Payload --
-   -------------
+   --------------------
+   -- Payload_Object --
+   --------------------
 
-   function Payload
-     (Self : JSON_Web_Signature)
+   function Payload_Object
+     (Self : JSON_Web_Signature'Class)
+      return League.JSON.Objects.JSON_Object
+   is
+      Document : constant League.JSON.Documents.JSON_Document :=
+        League.JSON.Documents.From_JSON (Self.Payload);
+   begin
+      return Document.To_JSON_Object;
+   end Payload_Object;
+
+   --------------------
+   -- Payload_Vector --
+   --------------------
+
+   function Payload_Vector
+     (Self : JSON_Web_Signature'Class)
       return League.Stream_Element_Vectors.Stream_Element_Vector is
    begin
       return Self.Payload;
-   end Payload;
+   end Payload_Vector;
 
    -------------------
    -- Set_Algorithm --
@@ -277,7 +296,7 @@ package body JWS is
    ------------------------------------
 
    procedure Validate_Compact_Serialization
-     (Self   : out JSON_Web_Signature;
+     (Self   : out JSON_Web_Signature'Class;
       Value  : League.Strings.Universal_String;
       Secret : Ada.Streams.Stream_Element_Array;
       Valid  : out Boolean)

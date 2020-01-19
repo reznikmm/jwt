@@ -53,22 +53,29 @@ package JWS is
       Secret  : Ada.Streams.Stream_Element_Array);
 
    function Compact_Serialization
-     (Self : JSON_Web_Signature) return League.Strings.Universal_String;
+     (Self : JSON_Web_Signature'Class) return League.Strings.Universal_String;
    --  A representation of the JWS as a compact, URL-safe string.
 
    procedure Validate_Compact_Serialization
-     (Self   : out JSON_Web_Signature;
+     (Self   : out JSON_Web_Signature'Class;
       Value  : League.Strings.Universal_String;
       Secret : Ada.Streams.Stream_Element_Array;
       Valid  : out Boolean);
    --  Validate given compact serialization using Secret
 
    function Payload
-     (Self : JSON_Web_Signature) return Ada.Streams.Stream_Element_Array;
+     (Self : JSON_Web_Signature'Class) return Ada.Streams.Stream_Element_Array;
+   --  Return the payload from given signature.
 
-   function Payload
-     (Self : JSON_Web_Signature)
+   function Payload_Vector
+     (Self : JSON_Web_Signature'Class)
       return League.Stream_Element_Vectors.Stream_Element_Vector;
+   --  Return the payload from given signature as Stream_Element vector.
+
+   function Payload_Object
+     (Self : JSON_Web_Signature'Class)
+      return League.JSON.Objects.JSON_Object;
+   --  Return the payload from given signature as JSON Object.
 
 private
 
@@ -83,5 +90,13 @@ private
       Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
       Secret : Ada.Streams.Stream_Element_Array)
       return League.Stream_Element_Vectors.Stream_Element_Vector;
+
+   type Signature_Function is access
+     function
+       (Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
+        Secret : Ada.Streams.Stream_Element_Array)
+        return League.Stream_Element_Vectors.Stream_Element_Vector;
+
+   RS256_Soft_Link : Signature_Function;
 
 end JWS;
