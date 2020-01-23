@@ -13,9 +13,12 @@ GPRINSTALL_FLAGS = --prefix=$(PREFIX) --sources-subdir=$(INSTALL_INCLUDE_DIR)\
 
 all:
 	gprbuild $(GPRBUILD_FLAGS) -P gnat/jwt.gpr
+	gprbuild $(GPRBUILD_FLAGS) -P gnat/jwt_tests.gpr
 
 install:
 	gprinstall $(GPRINSTALL_FLAGS) -p -P gnat/jwt.gpr
 clean:
 	gprclean -q -P gnat/jwt.gpr
-
+check: all
+	.objs/tests/hs_256_test
+	.objs/tests/rs_256_test

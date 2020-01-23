@@ -114,7 +114,7 @@ package body JWS is
 
       elsif Alg = +"RS256" then
 
-         return RS256_Soft_Link (Data, Secret);
+         return RS256_Signature_Link (Data, Secret);
 
       elsif Alg = +"none" then
          return League.Stream_Element_Vectors.Empty_Stream_Element_Vector;
@@ -302,7 +302,14 @@ package body JWS is
       Valid  : out Boolean)
    is
       use type League.Strings.Universal_String;
-      use type League.Stream_Element_Vectors.Stream_Element_Vector;
+
+      function Alg return Wide_Wide_String;
+
+      function Alg return Wide_Wide_String is
+      begin
+         return Self.Header.Value (+"alg").To_String.To_Wide_Wide_String;
+      end Alg;
+
       List : constant League.String_Vectors.Universal_String_Vector :=
         Value.Split ('.');
 
@@ -316,6 +323,7 @@ package body JWS is
       Text : League.Strings.Universal_String;
       Signature : League.Stream_Element_Vectors.Stream_Element_Vector;
       Encoded_Signature : League.Strings.Universal_String;
+
    begin
       Valid := False;
       --  1. Parse the JWS representation to extract the serialized values...
@@ -347,8 +355,8 @@ package body JWS is
       --  5. Verify that the implementation understands and can process...
       if not Self.Header.Value (+"alg").Is_String then
          return;
-      elsif Self.Header.Value (+"alg").To_String.To_Wide_Wide_String not in
-        "none" | "HS256"
+      elsif Alg not in "none" | "HS256"
+        and (Alg /= "RS256" or RS256_Validation_Link = null)
       then
          return;
       elsif Self.Header.Critical.Length > 0 then
@@ -379,13 +387,46 @@ package body JWS is
       --  8. Validate the JWS Signature against the JWS Signing Input
       Text := Encoded_Header & "." & Encoded_Payload;
 
-      if Self.Header.Compute_Signature (ASCII.Encode (Text), Secret)
-        /= Signature
+      if not Self.Header.Validate_Signature
+        (ASCII.Encode (Text), Secret, Signature)
       then
          return;
       end if;
 
       Valid := True;
    end Validate_Compact_Serialization;
+
+   ------------------------
+   -- Validate_Signature --
+   ------------------------
+
+   function Validate_Signature
+     (Self   : JOSE_Header'Class;
+      Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
+      Secret : Ada.Streams.Stream_Element_Array;
+      Value  : League.Stream_Element_Vectors.Stream_Element_Vector)
+      return Boolean
+   is
+      use type League.Strings.Universal_String;
+
+      Alg : constant League.Strings.Universal_String := Self.Algorithm;
+   begin
+      if Alg = +"HS256" then
+         declare
+            use type League.Stream_Element_Vectors.Stream_Element_Vector;
+         begin
+            return Self.Compute_Signature (Data, Secret) = Value;
+         end;
+
+      elsif Alg = +"RS256" then
+
+         return RS256_Validation_Link (Data, Secret, Value);
+
+      elsif Alg = +"none" then
+         return Value.Is_Empty;
+      end if;
+
+      raise Constraint_Error with "Unknown algorithm " & Alg.To_UTF_8_String;
+   end Validate_Signature;
 
 end JWS;

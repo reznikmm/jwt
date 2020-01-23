@@ -91,12 +91,27 @@ private
       Secret : Ada.Streams.Stream_Element_Array)
       return League.Stream_Element_Vectors.Stream_Element_Vector;
 
+   function Validate_Signature
+     (Self   : JOSE_Header'Class;
+      Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
+      Secret : Ada.Streams.Stream_Element_Array;
+      Value  : League.Stream_Element_Vectors.Stream_Element_Vector)
+        return Boolean;
+
    type Signature_Function is access
      function
        (Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
         Secret : Ada.Streams.Stream_Element_Array)
         return League.Stream_Element_Vectors.Stream_Element_Vector;
 
-   RS256_Soft_Link : Signature_Function;
+   type Validate_Signature_Function is access
+     function
+       (Data   : League.Stream_Element_Vectors.Stream_Element_Vector;
+        Secret : Ada.Streams.Stream_Element_Array;
+        Value  : League.Stream_Element_Vectors.Stream_Element_Vector)
+          return Boolean;
+
+   RS256_Signature_Link : Signature_Function;
+   RS256_Validation_Link : Validate_Signature_Function;
 
 end JWS;

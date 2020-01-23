@@ -1,0 +1,21 @@
+--  Copyright (c) 2020 Maxim Reznik <reznikmm@gmail.com>
+--
+--  SPDX-License-Identifier: MIT
+--  License-Filename: LICENSE
+-------------------------------------------------------------
+
+with "matreshka_league";
+with "jwt";
+
+project JWT_Tests is
+
+   for Main use ("hs_256_test.adb", "rs_256_test.adb");
+
+   for Source_Dirs use ("../tests");
+   for Object_Dir use JWT.Build_Dir & "/tests";
+
+   package Compiler renames JWT.Compiler;
+
+   package Binder renames JWT.Binder;
+
+end JWT_Tests;
