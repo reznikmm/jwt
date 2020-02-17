@@ -1,9 +1,14 @@
+--  Copyright (c) 2020 Maxim Reznik <reznikmm@gmail.com>
+--
+--  SPDX-License-Identifier: MIT
+--  License-Filename: LICENSE
+-------------------------------------------------------------
+
 separate (JWS.RS256)
 package body Read_DER is
 
    use type Ada.Streams.Stream_Element;
    use type Ada.Streams.Stream_Element_Count;
-   use type JWS.Integers.Value;
 
    procedure Algorithm
      (Input : Ada.Streams.Stream_Element_Array;
@@ -19,39 +24,34 @@ package body Read_DER is
       J      : in out Ada.Streams.Stream_Element_Count;
       Length : out Ada.Streams.Stream_Element_Count);
 
-   procedure Get_Integer
+   function Get_Integer
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out JWS.Integers.Value);
+      J     : in out Ada.Streams.Stream_Element_Count)
+        return JWS.Integers.Number;
 
    procedure PrivateKeyAlgorithmIdentifier
      (Input : Ada.Streams.Stream_Element_Array;
       J     : in out Ada.Streams.Stream_Element_Count);
 
-   procedure RSAPrivateKey
+   function RSAPrivateKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key);
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key;
 
-   procedure PrivateKey
+   function PrivateKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key);
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key;
 
-   procedure OneAsymmetricKey
+   function OneAsymmetricKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key);
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key;
 
-   procedure Public_Key_String
+   function Public_Key_String
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Public_Key);
+      J     : in out Ada.Streams.Stream_Element_Count) return Public_Key;
 
-   procedure RSAPublicKey
+   function RSAPublicKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Public_Key);
+      J     : in out Ada.Streams.Stream_Element_Count) return Public_Key;
 
    ---------------
    -- Algorithm --
@@ -97,19 +97,24 @@ package body Read_DER is
    -- Get_Integer --
    -----------------
 
-   procedure Get_Integer
+   function Get_Integer
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out JWS.Integers.Value)
+      J     : in out Ada.Streams.Stream_Element_Count)
+        return JWS.Integers.Number
    is
       Length : Ada.Streams.Stream_Element_Count;
       Last   : Ada.Streams.Stream_Element_Count;
+      Count  : Positive;
    begin
       Expect (Input, J, 2);  --  Integer
       Get_Length (Input, J, Length);
       Last := J + Length - 1;
-      Value := JWS.Integers.BER_Value (Input (J .. Last));
-      J := Last + 1;
+      Count := JWS.Integers.BER_Length (Input (J .. Last));
+
+      return Result : JWS.Integers.Number (1 .. Count) do
+         JWS.Integers.BER_Decode (Input (J .. Last), Result);
+         J := Last + 1;
+      end return;
    end Get_Integer;
 
    ----------------
@@ -145,33 +150,36 @@ package body Read_DER is
    -- OneAsymmetricKey --
    ----------------------
 
-   procedure OneAsymmetricKey
+   function OneAsymmetricKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key)
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key
    is
       Length  : Ada.Streams.Stream_Element_Count;
       Last    : Ada.Streams.Stream_Element_Count;
-      Version : JWS.Integers.Value;
    begin
       Expect (Input, J, 16#30#);  --  SEQUENCE
       Get_Length (Input, J, Length);
       Last := J + Length;
-      Get_Integer (Input, J, Version);
-      pragma Assert (Version = JWS.Integers.Zero);
-      PrivateKeyAlgorithmIdentifier (Input, J);
-      PrivateKey (Input, J, Value);
-      pragma Assert (J = Last);
+
+      declare
+         Version : constant JWS.Integers.Number := Get_Integer (Input, J);
+      begin
+         pragma Assert (Version in (1 => 0));
+         PrivateKeyAlgorithmIdentifier (Input, J);
+      end;
+
+      return R : constant Private_Key := PrivateKey (Input, J) do
+         pragma Assert (J = Last);
+      end return;
    end OneAsymmetricKey;
 
    ----------------
    -- PrivateKey --
    ----------------
 
-   procedure PrivateKey
+   function PrivateKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key)
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key
    is
       Length : Ada.Streams.Stream_Element_Count;
       Last   : Ada.Streams.Stream_Element_Count;
@@ -179,8 +187,10 @@ package body Read_DER is
       Expect (Input, J, 16#04#);  --  OCTET STRING
       Get_Length (Input, J, Length);
       Last := J + Length;
-      RSAPrivateKey (Input, J, Value);
-      pragma Assert (J = Last);
+
+      return R : constant Private_Key := RSAPrivateKey (Input, J) do
+         pragma Assert (J = Last);
+      end return;
    end PrivateKey;
 
 
@@ -206,10 +216,10 @@ package body Read_DER is
    -- Public_Key_String --
    -----------------------
 
-   procedure Public_Key_String
+   function Public_Key_String
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Public_Key)
+      J     : in out Ada.Streams.Stream_Element_Count)
+        return Public_Key
    is
       Length  : Ada.Streams.Stream_Element_Count;
       Last    : Ada.Streams.Stream_Element_Count;
@@ -219,30 +229,32 @@ package body Read_DER is
       Last := J + Length;
 
       Expect (Input, J, 16#00#);  --  EOC
-      RSAPublicKey (Input, J, Value);
-      pragma Assert (J = Last);
+
+      return R : constant Public_Key := RSAPublicKey (Input, J) do
+         pragma Assert (J = Last);
+      end return;
    end Public_Key_String;
 
    ----------------------
    -- Read_Private_Key --
    ----------------------
 
-   procedure Read_Private_Key
-     (Input : Ada.Streams.Stream_Element_Array;
-      Value : out Private_Key)
+   function Read_Private_Key
+     (Input : Ada.Streams.Stream_Element_Array)
+       return Private_Key
    is
       J : Ada.Streams.Stream_Element_Count := Input'First;
    begin
-      OneAsymmetricKey (Input, J, Value);
+      return OneAsymmetricKey (Input, J);
    end Read_Private_Key;
 
    ---------------------
    -- Read_Public_Key --
    ---------------------
 
-   procedure Read_Public_Key
-     (Input : Ada.Streams.Stream_Element_Array;
-      Value : out Public_Key)
+   function Read_Public_Key
+     (Input : Ada.Streams.Stream_Element_Array)
+      return Public_Key
    is
       J : Ada.Streams.Stream_Element_Count := Input'First;
 
@@ -254,47 +266,80 @@ package body Read_DER is
       Last := J + Length;
 
       PrivateKeyAlgorithmIdentifier (Input, J);
-      Public_Key_String (Input, J, Value);
-      pragma Assert (J = Last);
+
+      return R : constant Public_Key := Public_Key_String (Input, J) do
+         pragma Assert (J = Last);
+      end return;
    end Read_Public_Key;
 
    -------------------
    -- RSAPrivateKey --
    -------------------
 
-   procedure RSAPrivateKey
+   function RSAPrivateKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Private_Key)
+      J     : in out Ada.Streams.Stream_Element_Count) return Private_Key
    is
       Length  : Ada.Streams.Stream_Element_Count;
       Last    : Ada.Streams.Stream_Element_Count;
-      Version : JWS.Integers.Value;
    begin
       Expect (Input, J, 16#30#);  --  SEQUENCE
       Get_Length (Input, J, Length);
       Last := J + Length;
-      Get_Integer (Input, J, Version);
-      pragma Assert (Version = JWS.Integers.Zero);
-      Get_Integer (Input, J, Value.Modulus);
-      Get_Integer (Input, J, Value.Public_Exponent);
-      Get_Integer (Input, J, Value.Private_Exponent);
-      Get_Integer (Input, J, Value.Prime_1);
-      Get_Integer (Input, J, Value.Prime_2);
-      Get_Integer (Input, J, Value.Exponent_1);
-      Get_Integer (Input, J, Value.Exponent_2);
-      Get_Integer (Input, J, Value.Coefficient);
-      pragma Assert (J = Last);
+
+      declare
+         Version : constant JWS.Integers.Number := Get_Integer (Input, J);
+      begin
+         pragma Assert (Version in (1 => 0));
+      end;
+
+      declare
+         Modulus          : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Public_Exponent  : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Private_Exponent : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Prime_1          : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Prime_2          : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Exponent_1       : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Exponent_2       : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+         Coefficient      : constant JWS.Integers.Number :=
+           Get_Integer (Input, J);
+      begin
+         pragma Assert (J = Last);
+
+         return
+           (N                => Modulus'Last,
+            E                => Public_Exponent'Last,
+            D                => Private_Exponent'Last,
+            P                => Prime_1'Last,
+            Q                => Prime_2'Last,
+            E1               => Exponent_1'Last,
+            E2               => Exponent_2'Last,
+            C                => Coefficient'Last,
+            Modulus          => Modulus,
+            Public_Exponent  => Public_Exponent,
+            Private_Exponent => Private_Exponent,
+            Prime_1          => Prime_1,
+            Prime_2          => Prime_2,
+            Exponent_1       => Exponent_1,
+            Exponent_2       => Exponent_2,
+            Coefficient      => Coefficient);
+      end;
    end RSAPrivateKey;
 
    ------------------
    -- RSAPublicKey --
    ------------------
 
-   procedure RSAPublicKey
+   function RSAPublicKey
      (Input : Ada.Streams.Stream_Element_Array;
-      J     : in out Ada.Streams.Stream_Element_Count;
-      Value : out Public_Key)
+      J     : in out Ada.Streams.Stream_Element_Count) return Public_Key
    is
       Length  : Ada.Streams.Stream_Element_Count;
       Last    : Ada.Streams.Stream_Element_Count;
@@ -302,9 +347,18 @@ package body Read_DER is
       Expect (Input, J, 16#30#);  --  SEQUENCE
       Get_Length (Input, J, Length);
       Last := J + Length;
-      Get_Integer (Input, J, Value.Modulus);
-      Get_Integer (Input, J, Value.Public_Exponent);
-      pragma Assert (J = Last);
+
+      declare
+         Modulus  : constant JWS.Integers.Number := Get_Integer (Input, J);
+         Exponent : constant JWS.Integers.Number := Get_Integer (Input, J);
+      begin
+         pragma Assert (J = Last);
+
+         return (N               => Modulus'Last,
+                 E               => Exponent'Last,
+                 Modulus         => Modulus,
+                 Public_Exponent => Exponent);
+      end;
    end RSAPublicKey;
 
 end Read_DER;

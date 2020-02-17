@@ -10,20 +10,20 @@ with JWS.Integers;
 
 package body JWS.RS256 is
 
-   type Private_Key is record
-      Modulus          : JWS.Integers.Value;  --  n
-      Public_Exponent  : JWS.Integers.Value;  --  e
-      Private_Exponent : JWS.Integers.Value;  --  d
-      Prime_1          : JWS.Integers.Value;  --  p
-      Prime_2          : JWS.Integers.Value;  --  q
-      Exponent_1       : JWS.Integers.Value;  --  d mod (p-1)
-      Exponent_2       : JWS.Integers.Value;  --  d mod (q-1)
-      Coefficient      : JWS.Integers.Value;  --  (inverse of q) mod p
+   type Private_Key (N, E, D, P, Q, E1, E2, C : Positive) is record
+      Modulus          : JWS.Integers.Number (1 .. N);  --  n
+      Public_Exponent  : JWS.Integers.Number (1 .. E);  --  e
+      Private_Exponent : JWS.Integers.Number (1 .. D);  --  d
+      Prime_1          : JWS.Integers.Number (1 .. P);  --  p
+      Prime_2          : JWS.Integers.Number (1 .. Q);  --  q
+      Exponent_1       : JWS.Integers.Number (1 .. E1);  --  d mod (p-1)
+      Exponent_2       : JWS.Integers.Number (1 .. E2);  --  d mod (q-1)
+      Coefficient      : JWS.Integers.Number (1 .. C);  --  (inver. of q) mod p
    end record;
 
-   type Public_Key is record
-      Modulus          : JWS.Integers.Value;  --  n
-      Public_Exponent  : JWS.Integers.Value;  --  e
+   type Public_Key (N, E : Positive) is record
+      Modulus          : JWS.Integers.Number (1 .. N);  --  n
+      Public_Exponent  : JWS.Integers.Number (1 .. E);  --  e
    end record;
 
    function Do_Sign
@@ -37,13 +37,13 @@ package body JWS.RS256 is
 
 
    package Read_DER is
-      procedure Read_Private_Key
-        (Input : Ada.Streams.Stream_Element_Array;
-         Value : out Private_Key);
+      function Read_Private_Key
+        (Input : Ada.Streams.Stream_Element_Array)
+          return Private_Key;
 
-      procedure Read_Public_Key
-        (Input : Ada.Streams.Stream_Element_Array;
-         Value : out Public_Key);
+      function Read_Public_Key
+        (Input : Ada.Streams.Stream_Element_Array)
+          return Public_Key;
    end Read_DER;
 
    function Signature
@@ -73,17 +73,17 @@ package body JWS.RS256 is
       Key  : Private_Key) return Ada.Streams.Stream_Element_Array
    is
       k  : constant Ada.Streams.Stream_Element_Count :=
-        JWS.Integers.Length (Key.Modulus);
+        Ada.Streams.Stream_Element_Count (Key.N * 4);
       EM : Ada.Streams.Stream_Element_Array (1 .. k);
-      M  : JWS.Integers.Value;
-      S  : JWS.Integers.Value;
+      M  : JWS.Integers.Number (1 .. Key.N);
+      S  : JWS.Integers.Number (1 .. Key.N);
    begin
       Encode (Data, EM);
-      M := JWS.Integers.BER_Value (EM);
+      JWS.Integers.BER_Decode (EM, M);
       --  s = m^d mod n.
-      S := JWS.Integers.RSASP1 (M, Key.Private_Exponent, Key.Modulus);
-
-      return JWS.Integers.To_BER (S);
+      JWS.Integers.Power (M, Key.Private_Exponent, Key.Modulus, S);
+      JWS.Integers.BER_Encode (S, EM);
+      return EM;
    end Do_Sign;
 
    -----------------
@@ -96,27 +96,20 @@ package body JWS.RS256 is
       Sign : Ada.Streams.Stream_Element_Array) return Boolean
    is
       use type Ada.Streams.Stream_Element_Array;
-      use type Ada.Streams.Stream_Element_Offset;
 
       k  : constant Ada.Streams.Stream_Element_Count :=
-        JWS.Integers.Length (Key.Modulus);
+        Ada.Streams.Stream_Element_Count (Key.N * 4);
       EM : Ada.Streams.Stream_Element_Array (1 .. k);
-      S  : JWS.Integers.Value;
-      M  : JWS.Integers.Value;
+      ME : Ada.Streams.Stream_Element_Array (1 .. k);
+      S  : JWS.Integers.Number (1 .. Key.N);
+      M  : JWS.Integers.Number (1 .. Key.N);
    begin
       Encode (Data, EM);
-      S := JWS.Integers.BER_Value (Sign);
-      M := JWS.Integers.RSASP1 (S, Key.Public_Exponent, Key.Modulus);
+      JWS.Integers.BER_Decode (Sign, S);
+      JWS.Integers.Power (S, Key.Public_Exponent, Key.Modulus, M);
+      JWS.Integers.BER_Encode (M, ME);
 
-      declare
-         ME : constant Ada.Streams.Stream_Element_Array :=
-           JWS.Integers.To_BER (M);
-         Last : constant Ada.Streams.Stream_Element_Count :=
-           EM'Last - ME'Length;
-      begin
-         return EM (Last + 1 .. EM'Last) = ME
-           and EM (1 .. Last) = (1 .. Last => 0);
-      end;
+      return EM = ME;
    end Do_Validate;
 
    ------------
@@ -152,9 +145,8 @@ package body JWS.RS256 is
       Secret : Ada.Streams.Stream_Element_Array)
       return League.Stream_Element_Vectors.Stream_Element_Vector
    is
-      Key : Private_Key;
+      Key : constant Private_Key := Read_DER.Read_Private_Key (Secret);
    begin
-      Read_DER.Read_Private_Key (Secret, Key);
 
       return League.Stream_Element_Vectors.To_Stream_Element_Vector
         (Do_Sign (Data.To_Stream_Element_Array, Key));
@@ -170,9 +162,8 @@ package body JWS.RS256 is
       Value  : League.Stream_Element_Vectors.Stream_Element_Vector)
       return Boolean
    is
-      Key : Public_Key;
+      Key : constant Public_Key := Read_DER.Read_Public_Key (Secret);
    begin
-      Read_DER.Read_Public_Key (Secret, Key);
 
       return Do_Validate
         (Data.To_Stream_Element_Array,

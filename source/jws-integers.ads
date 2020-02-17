@@ -4,55 +4,78 @@
 --  License-Filename: LICENSE
 -------------------------------------------------------------
 
-with Ada.Containers;
-with Ada.Streams;
-
-with League.Stream_Element_Vectors;
-
 package JWS.Integers is
---   pragma Preelaborate;
 
-   type Value is private;
+   Digit_Size : constant := 32;
 
-   function Literal (Text : String) return Value;
+   type Digit is mod 2 ** Digit_Size;
 
-   function "and" (Left, Right : Value) return Value;
-   function "or" (Left, Right : Value) return Value;
-   function "xor" (Left, Right : Value) return Value;
+   type Number is array (Positive range <>) of Digit
+     with Dynamic_Predicate => Number'First = 1;
+   --  Size is number of Digits in the Number
 
-   function "=" (Left, Right : Value) return Boolean;
-   function ">" (Left, Right : Value) return Boolean;
-   function "<" (Left, Right : Value) return Boolean;
-   function ">=" (Left, Right : Value) return Boolean;
-   function "<=" (Left, Right : Value) return Boolean;
+   function BER_Length
+     (Raw   : Ada.Streams.Stream_Element_Array) return Positive;
+   --  Return length of Number for given BER encoding
 
-   function "-" (Left : Value) return Value;
-   function "+" (Left, Right : Value) return Value;
-   function "-" (Left, Right : Value) return Value;
-   function "*" (Left, Right : Value) return Value;
-   function "/" (Left, Right : Value) return Value;
-   function "mod" (Left, Right : Value) return Value;
-   function "rem" (Left, Right : Value) return Value;
-   function "**" (Left, Right : Value) return Value;
-   function "abs" (Left : Value) return Value;
-   function "not" (Left : Value) return Value;
+   procedure BER_Decode
+     (Raw   : Ada.Streams.Stream_Element_Array;
+      Value : out Number);
+   --  Decode BER integer into Value
 
-   function Image (Left : Value) return String;
-   function Hash (Left : Value) return Ada.Containers.Hash_Type;
-   function Length (Left : Value) return Ada.Streams.Stream_Element_Count;
-   function BER_Value (Data : Ada.Streams.Stream_Element_Array) return Value;
-   function To_BER (Data : Value) return Ada.Streams.Stream_Element_Array;
-   function RSASP1 (M, D, N : Value) return Value;
-   --  m^d mod n
+   procedure BER_Encode
+     (Value : Number;
+      Raw   : out Ada.Streams.Stream_Element_Array);
+   --  Encode number into BER integer
 
-   function Zero return Value;
-   function One  return Value;
-   function Two  return Value;
-   function Ten  return Value;
+   procedure Add
+     (A, B   : Number;
+      Result : out Number)
+     with Pre => A'Length = B'Length and Result'Length = A'Length;
+   --  Result is A + B
 
-private
+   procedure Add
+     (A, B   : Number;
+      Result : out Number;
+      C      : Digit)
+     with Pre => A'Length = B'Length and Result'Length = A'Length + 1;
+   --  Result is A + B * C
+   --  Result'Address can be A'Address or B'Address
 
-   type Value is new League.Stream_Element_Vectors.Stream_Element_Vector
-     with null record;
+   procedure Subtract
+     (A, B   : Number;
+      Result : out Number;
+      C      : Digit := 1;
+      Ok     : out Boolean)
+     with Pre => A'Length = B'Length + 1 and Result'Length = A'Length;
+   --  Result is A - B * C, Ok is A >= B * C
+
+   procedure Multiply
+     (A, B   : Number;
+      Result : out Number)
+     with Pre => Result'Length = A'Length + B'Length;
+   --  Result is A * B
+
+   procedure Fast_Devide
+     (A      : Number;
+      B      : Digit;
+      Result : out Number;
+      Rest   : out Digit)
+     with Pre => Result'Length = A'Length and B /= 0;
+   --  Result is A /B, while Rest is A mod B
+
+   procedure Remainder
+     (A, B   : Number;
+      Result : out Number)
+     with Pre => B /= (B'Range => 0) and Result'Length = B'Length;
+   --  Result is A mod B
+
+   procedure Power
+     (Value    : Number;
+      Exponent : Number;
+      Module   : Number;
+      Result   : out Number)
+     with Pre => Result'Length = Module'Length;
+   --  Result is (Value ** Exponent) mod Module
 
 end JWS.Integers;
