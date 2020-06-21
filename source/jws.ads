@@ -63,6 +63,10 @@ package JWS is
       Valid  : out Boolean);
    --  Validate given compact serialization using Secret
 
+   function Flattened_Serialization
+     (Self : JSON_Web_Signature'Class) return League.JSON.Objects.JSON_Object;
+   --  A representation of the JWS using Flattened Serialization Syntax.
+
    function Payload
      (Self : JSON_Web_Signature'Class) return Ada.Streams.Stream_Element_Array;
    --  Return the payload from given signature.

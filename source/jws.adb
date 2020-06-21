@@ -64,6 +64,44 @@ package body JWS is
       return Text & "." & Encoded_Signature;
    end Compact_Serialization;
 
+   -----------------------------
+   -- Flattened_Serialization --
+   -----------------------------
+
+   function Flattened_Serialization
+     (Self : JSON_Web_Signature'Class) return League.JSON.Objects.JSON_Object
+   is
+      use type League.Strings.Universal_String;
+
+      ASCII : constant League.Text_Codecs.Text_Codec :=
+        League.Text_Codecs.Codec (+"USASCII");
+      Encoded_Payload : constant League.Strings.Universal_String :=
+        To_Base_64_URL (Self.Payload);
+      Raw_Header : constant League.Stream_Element_Vectors.Stream_Element_Vector
+        := Self.Header.To_JSON_Document.To_JSON;
+      Encoded_Header : constant League.Strings.Universal_String :=
+        To_Base_64_URL (Raw_Header);
+      Text : constant League.Strings.Universal_String :=
+        Encoded_Header & "." & Encoded_Payload;
+      Signature : constant League.Stream_Element_Vectors.Stream_Element_Vector
+        := Self.Header.Compute_Signature
+          (ASCII.Encode (Text), Self.Secret.To_Stream_Element_Array);
+      Encoded_Signature : constant League.Strings.Universal_String :=
+        To_Base_64_URL (Signature);
+   begin
+      return Result : League.JSON.Objects.JSON_Object do
+         Result.Insert
+           (+"payload",
+            League.JSON.Values.To_JSON_Value (Encoded_Payload));
+         Result.Insert
+           (+"protected",
+            League.JSON.Values.To_JSON_Value (Encoded_Header));
+         Result.Insert
+           (+"signature",
+            League.JSON.Values.To_JSON_Value (Encoded_Signature));
+      end return;
+   end Flattened_Serialization;
+
    -----------------------
    -- Compute_Signature --
    -----------------------
