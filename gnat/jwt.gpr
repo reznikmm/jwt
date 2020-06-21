@@ -8,9 +8,16 @@ with "matreshka_league";
 
 project JWT is
 
+   Version := "0.1.0";
+
    Build_Dir := external ("BUILD", "../.objs");
    for Source_Dirs use ("../source");
    for Object_Dir use Build_Dir;
+   for Library_Kind use "dynamic";
+   for Library_Name use "jwtada";
+   for Library_Dir use "../.libs";
+   for Library_ALI_Dir use "../.libs/jwt";
+   for Library_Version use "libjwtada.so." & Version;
 
    package Compiler is
       for Default_Switches ("ada") use

@@ -89,9 +89,7 @@ them with `openssl`. Currently the library accepts binary representation
 of the keys. To create a private key run:
 
 ```
-openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 \
- -keyout ./privateKey.key -out ./certificate.crt
-grep -v ^- privateKey.key| base64 -d > priv.dat
+openssl genpkey -algorithm RSA -out priv.dat -outform DER
 ```
 
 Then put `priv.dat` content into the `Secret` parameter of `Create`.
@@ -121,8 +119,7 @@ end;
 
 To get public key from your private key run:
 ```
-openssl rsa  -pubout -in ./privateKey.key > ./publicKey.key
-grep -v ^- privateKey.key| base64 -d > pub.dat
+openssl rsa -pubout -inform DER -in priv.dat -outform DER -out pub.dat
 ```
 
 To validate a JWT use content of the `pub.dat` as the `Secret`
