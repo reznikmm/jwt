@@ -5,8 +5,11 @@
 -------------------------------------------------------------
 
 package JWS.RS256 is
-   pragma Elaborate_Body;
 
 --  With this package to enable RS256 support
+
+   function Public_JWK
+     (Raw_Key : Ada.Streams.Stream_Element_Array)
+       return League.JSON.Objects.JSON_Object;
 
 end JWS.RS256;

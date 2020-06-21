@@ -6,9 +6,15 @@
 
 with GNAT.SHA256;
 
+with League.JSON.Values;
+
 with JWS.Integers;
+with JWS.To_Base_64_URL;
 
 package body JWS.RS256 is
+
+   function "+" (V : Wide_Wide_String) return League.Strings.Universal_String
+     renames League.Strings.To_Universal_String;
 
    type Private_Key (N, E, D, P, Q, E1, E2, C : Positive) is record
       Modulus          : JWS.Integers.Number (1 .. N);  --  n
@@ -135,6 +141,56 @@ package body JWS.RS256 is
         & 00 & T;
       null;
    end Encode;
+
+   ----------------
+   -- Public_JWK --
+   ----------------
+
+   function Public_JWK
+     (Raw_Key : Ada.Streams.Stream_Element_Array)
+       return League.JSON.Objects.JSON_Object
+   is
+      function "-" (V : Wide_Wide_String) return League.JSON.Values.JSON_Value
+        is (League.JSON.Values.To_JSON_Value (+V));
+
+      function "-" (V : JWS.Integers.Number)
+        return League.JSON.Values.JSON_Value;
+
+      ---------
+      -- "-" --
+      ---------
+
+      function "-" (V : JWS.Integers.Number)
+        return League.JSON.Values.JSON_Value
+      is
+         use type Ada.Streams.Stream_Element;
+         use type Ada.Streams.Stream_Element_Count;
+         Raw : Ada.Streams.Stream_Element_Array (1 .. V'Length * 4);
+         From : Ada.Streams.Stream_Element_Count := Raw'Last + 1;
+         Vector : League.Stream_Element_Vectors.Stream_Element_Vector;
+      begin
+         JWS.Integers.BER_Encode (V, Raw);
+
+         for J in Raw'Range loop
+            if Raw (J) /= 0 then
+               From := J;
+               exit;
+            end if;
+         end loop;
+
+         Vector.Append (Raw (From .. Raw'Last));
+
+         return League.JSON.Values.To_JSON_Value (JWS.To_Base_64_URL (Vector));
+      end "-";
+
+      Key : constant Public_Key := Read_DER.Read_Public_Key (Raw_Key);
+   begin
+      return Result : League.JSON.Objects.JSON_Object do
+         Result.Insert (+"kty", -"RSA");
+         Result.Insert (+"e", -Key.Public_Exponent);
+         Result.Insert (+"n", -Key.Modulus);
+      end return;
+   end Public_JWK;
 
    ---------------
    -- Signature --
