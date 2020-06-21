@@ -4,6 +4,8 @@
 --  License-Filename: LICENSE
 -------------------------------------------------------------
 
+with Ada.Containers.Generic_Anonymous_Array_Sort;
+
 with GNAT.SHA256;
 
 with League.Base_Codecs;
@@ -307,7 +309,76 @@ package body JWS is
       Self.Insert (+"crit", Vector.To_JSON_Value);
    end Set_Critical;
 
+   ----------------
+   -- Thumbprint --
+   ----------------
 
+   function Thumbprint
+     (Key : League.JSON.Objects.JSON_Object)
+       return Ada.Streams.Stream_Element_Array
+   is
+      Keys : constant League.String_Vectors.Universal_String_Vector :=
+        Key.Keys;
+
+      Map  : array (1 .. Keys.Length) of Positive;
+
+      function Less (L, R : Positive) return Boolean;
+      procedure Swap (L, R : Positive);
+
+      ----------
+      -- Less --
+      ----------
+
+      function Less (L, R : Positive) return Boolean is
+         use type League.Strings.Universal_String;
+      begin
+         return Keys (Map (L)) < Keys (Map (R));
+      end Less;
+
+      ----------
+      -- Swap --
+      ----------
+
+      procedure Swap (L, R : Positive) is
+         Tmp : constant Positive := Map (L);
+      begin
+         Map (L) := Map (R);
+         Map (R) := Tmp;
+      end Swap;
+
+      procedure Sort is new Ada.Containers.Generic_Anonymous_Array_Sort
+        (Index_Type => Natural,
+         Less       => Less,
+         Swap       => Swap);
+
+      Text   : League.Strings.Universal_String;
+      ASCII  : constant League.Text_Codecs.Text_Codec :=
+        League.Text_Codecs.Codec (+"USASCII");
+   begin
+      for J in Map'Range loop
+         Map (J) := J;
+      end loop;
+
+      Sort (Map'First, Map'Last);
+
+      Text.Append ("{");
+
+      for J of Map loop
+         if Text.Length > 1 then
+            Text.Append (",");
+         end if;
+
+         Text.Append ('"');
+         Text.Append (Keys (J));
+         Text.Append (""":""");
+         Text.Append (Key.Value (Keys (J)).To_String);
+         Text.Append ('"');
+      end loop;
+
+      Text.Append ("}");
+
+      return ASCII.Encode (Text).To_Stream_Element_Array;
+   end Thumbprint;
 
    ------------------------------------
    -- Validate_Compact_Serialization --

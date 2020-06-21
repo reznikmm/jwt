@@ -81,6 +81,12 @@ package JWS is
       return League.JSON.Objects.JSON_Object;
    --  Return the payload from given signature as JSON Object.
 
+   function Thumbprint
+     (Key : League.JSON.Objects.JSON_Object)
+       return Ada.Streams.Stream_Element_Array;
+   --  Return binary representation of the Key as described in RFC-7638.
+   --  Suppose the Key contains only required properties.
+
 private
 
    type JSON_Web_Signature is tagged record
