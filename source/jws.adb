@@ -12,6 +12,8 @@ with League.JSON.Documents;
 with League.JSON.Values;
 with League.Text_Codecs;
 
+with JWS.To_Base_64_URL;
+
 package body JWS is
 
    function "+"
@@ -22,10 +24,6 @@ package body JWS is
      (Data    : League.Strings.Universal_String;
       Value   : in out League.Stream_Element_Vectors.Stream_Element_Vector;
       Success : out Boolean);
-
-   function To_Base_64_URL
-     (Data : League.Stream_Element_Vectors.Stream_Element_Vector)
-       return League.Strings.Universal_String;
 
    ---------------
    -- Algorithm --
@@ -271,25 +269,7 @@ package body JWS is
       Self.Insert (+"crit", Vector.To_JSON_Value);
    end Set_Critical;
 
-   --------------------
-   -- To_Base_64_URL --
-   --------------------
 
-   function To_Base_64_URL
-     (Data : League.Stream_Element_Vectors.Stream_Element_Vector)
-        return League.Strings.Universal_String
-   is
-      Result : constant League.Strings.Universal_String :=
-        League.Base_Codecs.To_Base_64_URL (Data);
-   begin
-      if Result.Ends_With ("==") then
-         return Result.Head_To (Result.Length - 2);
-      elsif Result.Ends_With ("=") then
-         return Result.Head_To (Result.Length - 1);
-      else
-         return Result;
-      end if;
-   end To_Base_64_URL;
 
    ------------------------------------
    -- Validate_Compact_Serialization --
