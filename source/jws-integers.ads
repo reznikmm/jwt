@@ -29,9 +29,9 @@ package JWS.Integers is
    --  Encode number into BER integer
 
    procedure Add
-     (A, B   : Number;
-      Result : out Number)
-     with Pre => A'Length = B'Length and Result'Length = A'Length;
+     (A   : in out Number;
+      B   : Number)
+     with Pre => A'Length = B'Length;
    --  Result is A + B
 
    procedure Add
@@ -43,11 +43,11 @@ package JWS.Integers is
    --  Result'Address can be A'Address or B'Address
 
    procedure Subtract
-     (A, B   : Number;
-      Result : out Number;
+     (A      : in out Number;
+      B      : Number;
       C      : Digit := 1;
       Ok     : out Boolean)
-     with Pre => A'Length = B'Length + 1 and Result'Length = A'Length;
+     with Pre => A'Length = B'Length + 1;
    --  Result is A - B * C, Ok is A >= B * C
 
    procedure Multiply

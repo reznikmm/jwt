@@ -15,8 +15,8 @@ project JWT is
    for Object_Dir use Build_Dir;
    for Library_Kind use "dynamic";
    for Library_Name use "jwtada";
-   for Library_Dir use "../.libs";
-   for Library_ALI_Dir use "../.libs/jwt";
+   for Library_Dir use Build_Dir & "/.libs";
+   for Library_ALI_Dir use Build_Dir & "/.libs/jwt";
    for Library_Version use "libjwtada.so." & Version;
 
    package Compiler is

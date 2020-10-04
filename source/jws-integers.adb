@@ -22,11 +22,12 @@ package body JWS.Integers is
    ---------
 
    procedure Add
-     (A, B   : Number;
-      Result : out Number)
+     (A   : in out Number;
+      B   : Number)
    is
-      Temp  : Double;
-      Carry : Double_Digit := 0;
+      Result : Number renames A;
+      Temp   : Double;
+      Carry  : Double_Digit := 0;
    begin
       for J in reverse 1 .. A'Length loop
          Temp := Double (A (J)) + Double (B (J)) + Carry;
@@ -187,19 +188,17 @@ package body JWS.Integers is
       Result := Get_Digit (Left, Right);
 
       Subtract
-        (A      => Left,
-         B      => Right,
-         Result => Left,
-         C      => Result,
-         Ok     => Ok);
+        (A  => Left,
+         B  => Right,
+         C  => Result,
+         Ok => Ok);
 
       if not Ok then
          Result := Result - 1;
 
          Add
-           (A      => Left,
-            B      => 0 & Right,
-            Result => Left);
+           (A => Left,
+            B => 0 & Right);
       end if;
    end Devide;
 
@@ -402,11 +401,12 @@ package body JWS.Integers is
    --------------
 
    procedure Subtract
-     (A, B   : Number;
-      Result : out Number;
+     (A      : in out Number;
+      B      : Number;
       C      : Digit := 1;
       Ok     : out Boolean)
    is
+      Result : Number renames A;
       Mult  : constant Double_Digit := Double_Digit (C);
       Temp  : Double;
       Carry : Digit := 0;
